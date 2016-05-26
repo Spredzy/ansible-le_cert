@@ -1,0 +1,44 @@
+---
+- name: Configure Let's Encrypt on the server with specific domain name
+  hosts: home
+  user: centos
+  become: yes
+  tasks:
+     - name: Ensure the proper file hierarchy is created
+       file: path={{ item }}
+             state=directory
+             mode=0755
+       with_items:
+         - /etc/letsencrypt
+         - /etc/letsencrypt/private
+         - /etc/letsencrypt/pem
+         - /etc/letsencrypt/challenges
+         - /etc/letsencrypt/csr
+         - /etc/letsencrypt/certs
+     - name: Ensure pyOpenSSL is installed
+       yum: name=pyOpenSSL
+     - name: Ensure acme-tiny is installed
+       pip: name='acme-tiny'
+     - name: Generate account key
+       le_account_key: name={{ item }}
+                       size=4096
+                       type='RSA'
+                       directory='/etc/letsencrypt/private'
+       with_items:
+         - 'yanisguenane.fr.pem'
+         - 'guenane.org.pem'
+  
+     - name: Generate lets encrypt certificate
+       le_cert: name={{ item.name }}
+                size=4096
+                algo='sha256'
+                type='RSA'
+                account_key={{ item.account_key }}
+                subjectAltName={{ item.subjectAltName | default('')}}
+                directory='/etc/letsencrypt/'
+                emailAddress={{ item.emailAddress | default('yanis@guenane.org') }}
+       with_items:
+         - { 'name': 'test-blog.yanisguenane.fr', 'account_key': 'yanisguenane.fr.pem'}
+         - { 'name': 'test-blog1.yanisguenane.fr', 'account_key': 'yanisguenane.fr.pem' }
+         - { 'name': 'foo.guenane.org', 'subjectAltName': 'foo-2.guenane.org', 'account_key': 'guenane.org.pem' }
+         - { 'name': 'bar.guenane.org', 'account_key': 'guenane.org.pem'}
